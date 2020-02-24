@@ -91,27 +91,37 @@ def con_mat(actual, predicted):
     return cm
 
 
+def calculate_accuracy(confusion_matrix):
+    total = 0
+    for i in range(confusion_matrix.shape[0]):
+        total += confusion_matrix[i][i]
+    total = (total * 1.) / (np.sum(np.sum(cvm)) * 1.)
+    return total
+
+
 train = pd.read_csv('mnist_train.csv', header=None)
 test = pd.read_csv('mnist_test.csv', header=None)
 
-#n, d = train.shape
 X = train.drop(0, axis=1)
 y = train[[0]]
-#X = X.loc[:100]
-#y = y.loc[:100]
 
 learning_rate = 1.0 / X.shape[0]
 weight = mnist_train(X, y, learning_rate)
+np.savetxt("hw2_p6_weights.csv", weight, delimiter=",")
 y_pred = mnist_predict(weight, X)
 
 print("Training Data Confusion Matrix")
 print(con_mat(y, y_pred))
+cvm = con_mat(y, y_pred)
+print(calculate_accuracy(cvm))
 
 X = test.drop(0, axis=1)
 y = test[[0]]
 y_pred = mnist_predict(weight, X)
 print("\nTest Data Confusion Matrix")
 print(con_mat(y, y_pred))
+cvm = con_mat(y, y_pred)
+print(calculate_accuracy(cvm))
 
 # multi-class logistic regression
 # Use mini-batches
