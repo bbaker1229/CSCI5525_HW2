@@ -113,7 +113,7 @@ y_pred = mnist_predict(weight, X)
 print("Training Data Confusion Matrix")
 print(con_mat(y, y_pred))
 cvm = con_mat(y, y_pred)
-print(calculate_accuracy(cvm))
+print("Training Accuracy: " + str(calculate_accuracy(cvm)))
 
 X = test.drop(0, axis=1)
 y = test[[0]]
@@ -121,7 +121,7 @@ y_pred = mnist_predict(weight, X)
 print("\nTest Data Confusion Matrix")
 print(con_mat(y, y_pred))
 cvm = con_mat(y, y_pred)
-print(calculate_accuracy(cvm))
+print("Test Accuracy: " + str(calculate_accuracy(cvm)))
 
 # multi-class logistic regression
 # Use mini-batches
