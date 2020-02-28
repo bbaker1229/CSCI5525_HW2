@@ -8,7 +8,6 @@
 # Import modules
 import numpy as np
 import pandas as pd
-from cvxopt.blas import dot
 from cvxopt import matrix as cvxopt_matrix
 from cvxopt import solvers as cvxopt_solvers
 import matplotlib.pyplot as plt
@@ -16,55 +15,68 @@ import matplotlib.pyplot as plt
 
 def shuffle_data(df):
     """
+    Input a data frame and return the same data frame with it's rows shuffled.
+    :param df: Input a pandas data frame.
+    :return: A row shuffled data frame.
     """
     row_nums = np.arange(df.shape[0])
-    np.random.seed(42)
+    np.random.seed(42)  # Make this repeatable
     np.random.shuffle(row_nums)
     df_shuffled = df.loc[row_nums]
     return df_shuffled
 
 
-def train_test_split(df):
+def train_test_split(df, train_frac):
     """
+    Split a data frame into a training set and a test set
+    by a specified fraction amount for the training set.
+    :param df: A pandas data frame
+    :param train_frac: The fraction of data to use as
+    the training set.
+    :return: Two pandas data frames.  A training data frame
+    and a test data frame.
     """
     row_nums = np.arange(df.shape[0])
-    df_test = df.loc[row_nums[:400]]
-    df_train = df.loc[row_nums[400:]]
+    m = int(df.shape[0] * train_frac)
+    df_train = df.loc[row_nums[:m]]
+    df_test = df.loc[row_nums[m:]]
     return df_train, df_test
 
 
-def create_k_train_sets(df):
+def create_k_train_sets(df, k):
     """
+    Input a data frame and the number of folds to split it into.
+    Get a dictionary of the data frame split into k groups.
+    :param df: A pandas data frame.
+    :param k: The number of folds.
+    :return: A dictionary of pandas data frames with the keys being the
+    fold numbers.
     """
     df = df.reset_index()
     row_nums = np.arange(df.shape[0])
-    k_rows = {0: list(row_nums[:160])
-              , 1: list(row_nums[160:320])
-              , 2: list(row_nums[320:480])
-              , 3: list(row_nums[480:640])
-              , 4: list(row_nums[640:800])
-              , 5: list(row_nums[800:960])
-              , 6: list(row_nums[960:1120])
-              , 7: list(row_nums[1120:1280])
-              , 8: list(row_nums[1280:1440])
-              , 9: list(row_nums[1440:])}
-    k_df = {0: df.loc[k_rows[0], :]
-            , 1: df.loc[k_rows[1], :]
-            , 2: df.loc[k_rows[2], :]
-            , 3: df.loc[k_rows[3], :]
-            , 4: df.loc[k_rows[4], :]
-            , 5: df.loc[k_rows[5], :]
-            , 6: df.loc[k_rows[6], :]
-            , 7: df.loc[k_rows[7], :]
-            , 8: df.loc[k_rows[8], :]
-            , 9: df.loc[k_rows[9], :]}
+    m = int(df.shape[0] / k)  # Define the batch size for this k value
+    # Define a dictionary of row number lists.
+    k_rows = {}
+    for i in range(k):
+        k_rows[i] = list(row_nums[(i * m): ((i + 1) * m)])
+    # Define a dictionary of pandas data frames sectioned into k groups
+    k_df = {}
+    for i in range(k):
+        k_df[i] = df.loc[k_rows[i], :]
     return k_df
 
 
-# Function to create training and validation sets
 def get_next_train_valid(data_dict, itr):
     """
-    Create training and validation sets by inputing a fold index.
+    Input a data dictionary with keys being the fold number and the
+    fold to get.  Helps for leave group out cross validation.
+    :param data_dict: A dictionary of pandas data frames
+    with keys being the fold number.
+    :param itr: The fold number of leave out and use as the
+    validation dataset.
+    :return: Four pandas data frames.  One for X values of the training
+    set, X values of the validation set, y values of the training
+    set, and y values of the validation set.
     """
     first_flag = 1
     for key in data_dict.keys():
@@ -84,9 +96,17 @@ def get_next_train_valid(data_dict, itr):
 
 
 def svmfit(X, y, c):
+    """
+    Fit an SVM classification model.
+    :param X: A pandas data frame of X features.
+    :param y: A pandas data frame of y target values.
+    :param c: A training parameter.
+    :return: A vector of weights for the SVM model.
+    """
     X = np.array(X)
     y = np.array(y)
     m = X.shape[0]
+    X = np.append(X, np.ones((m, 1)), 1)
     y = y.reshape(-1, 1)
     X_new = y * X
     H = np.dot(X_new, X_new.transpose())
@@ -105,14 +125,19 @@ def svmfit(X, y, c):
     lambdas = np.array(sol['x'])
 
     # calculate weights
-    weight = ((y * lambdas).transpose() @ X).reshape(-1, 1)
-    S = (lambdas > 1e-4).flatten()
-    b = y[S] - np.dot(X[S], weight)
-    weight = np.append(weight, b[0])
-    return weight
+    weight = np.matmul((y * lambdas).transpose(), X)
+    return weight[0]
 
 
 def predict(X, weight):
+    """
+    Predict data using an X input data frame and weights
+    from a trained SVM model.
+    :param X: A pandas data frame of features.
+    :param weight: A numpy array of trained weights for an SVM
+    classification model.
+    :return: A numpy array of y classification predictions.
+    """
     X = np.array(X)
     m = X.shape[0]
     X = np.append(X, np.ones(m))
@@ -123,82 +148,77 @@ def predict(X, weight):
 
 
 def k_fold_cv(train, test, k, c):
-    # Create training and validation sets from train
-    # Use Leave group out CV
-    # Find weight for training data
-    # Find accuracy on training data
-    # Find accuracy on validation data
-    # Choose best accuracy weights
-    # Use these weights for the test data set
-    # Report the average training accuracy
-    # Report the average validation accuracy
-    # Report the test accuracy
-    train_x, train_y, valid_x, valid_y = get_next_train_valid(train, k)
-    weight = svmfit(train_x, train_y, c)
-    y_pred = predict(train_x, weight)
-    train_acc = (train_y.shape[0] - np.count_nonzero(train_y-y_pred)) / train_y.shape[0]
-
-    y_pred = predict(valid_x, weight)
-    valid_acc = (valid_y.shape[0] - np.count_nonzero(valid_y-y_pred)) / valid_y.shape[0]
-    test_x = test[[0, 1]]
-    test_y = test[[2]]
-    y_pred = predict(test_x, weight)
-    test_acc = (test_y.shape[0] - np.count_nonzero(test_y - y_pred)) / test_y.shape[0]
-    return train_acc, valid_acc, test_acc
-
-
-c = 0.01
-# Read dataset
-data = pd.read_csv('hw2data.csv', header=None)
-data = shuffle_data(data)
-train_data, test_data = train_test_split(data)
-train_data = create_k_train_sets(train_data)
-
-train_acc_dict = {}
-cv_acc_dict = {}
-test_acc_dict = {}
-for c in [0.001, 0.01, 0.1, 1, 10, 100, 1000]:
-    print(c)
+    """
+    Does k fold cross validation on a training set for an SVM
+    classification model.
+    :param train: A pandas data frame to be used as the training
+    dataset.
+    :param test: A pandas data frame to be used as the test dataset.
+    :param k: The number of folds to use.
+    :param c: The modeling parameter to use for SVM.
+    :return: The average training accuracy and the validation
+    accuracies.  Also the test accuracy
+    using these best weights.
+    """
+    train_folds = create_k_train_sets(train, k)
+    weight_lst = []
     train_acc_lst = []
     cv_acc_lst = []
-    test_acc_lst = []
-    for i in range(10):
-        print(i, end=", ")
-        train_accuracy, cv_accuracy, test_accuracy = k_fold_cv(train_data, test_data, i, c)
-        train_acc_lst.append(train_accuracy)
-        cv_acc_lst.append(cv_accuracy)
-        test_acc_lst.append(test_accuracy)
-    train_acc_dict[c] = train_acc_lst
-    cv_acc_dict[c] = cv_acc_lst
-    test_acc_dict[c] = test_acc_lst
-    print('\n')
+    print("Fold #:")
+    for i in range(k):
+        print(i, end=" ")
+        train_x, train_y, valid_x, valid_y = get_next_train_valid(train_folds, i)
+        weight = svmfit(train_x, train_y, c)
+        weight_lst.append(weight)
+        y_pred = predict(train_x, weight)
+        train_acc = (train_y.shape[0] - np.count_nonzero(train_y - y_pred)) / train_y.shape[0]
+        train_acc_lst.append(train_acc)
+        y_pred = predict(valid_x, weight)
+        valid_acc = (valid_y.shape[0] - np.count_nonzero(valid_y - y_pred)) / valid_y.shape[0]
+        cv_acc_lst.append(valid_acc)
+    best = cv_acc_lst.index(max(cv_acc_lst))
+    test_x = test[[0, 1]]
+    test_y = test[[2]]
+    y_pred = predict(test_x, weight_lst[best])
+    test_acc = (test_y.shape[0] - np.count_nonzero(test_y - y_pred)) / test_y.shape[0]
+    print("\n")
+    return np.mean(train_acc_lst), np.mean(cv_acc_lst), test_acc
 
-delta_list = []
-for key in train_acc_dict.keys():
-    delta_list.append(np.mean(train_acc_dict[key]))
-keys = train_acc_dict.keys()
-df = pd.DataFrame(list(zip(keys, delta_list)), columns =['C', 'Accuracy'])
 
-# Create the plot
-df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of training accuracy by C")
+# Define the number of folds to use
+k = 10
+# Read dataset
+data = pd.read_csv('hw2data.csv', header=None)
+# Shuffle dataset
+data = shuffle_data(data)
+# Split dataset into training and test datasets
+train_data, test_data = train_test_split(data, train_frac=.8)
+
+# Perform k fold cross validation on a list of C parameters
+# Collect the average training and cv accuracies and the test
+# accuracy using the best parameters
+train_acc_lst = []
+cv_acc_lst = []
+test_acc_lst = []
+c_vals = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000]
+for c in c_vals:
+    print("C value: " + str(c))
+    train_accuracy, cv_accuracy, test_accuracy = k_fold_cv(train_data, test_data, k, c)
+    train_acc_lst.append(train_accuracy)
+    cv_acc_lst.append(cv_accuracy)
+    test_acc_lst.append(test_accuracy)
+
+# Create the training accuracy plot
+train_acc_df = pd.DataFrame(list(zip(c_vals, train_acc_lst)), columns=['C', 'Accuracy'])
+train_acc_df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of training accuracy by C")
 plt.show()
 
-delta_list = []
-for key in cv_acc_dict.keys():
-    delta_list.append(np.mean(cv_acc_dict[key]))
-keys = cv_acc_dict.keys()
-df = pd.DataFrame(list(zip(keys, delta_list)), columns =['C', 'Accuracy'])
-
-# Create the plot
-df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of cv accuracy by C")
+# Create the cv accuracy plot
+cv_acc_df = pd.DataFrame(list(zip(c_vals, cv_acc_lst)), columns=['C', 'Accuracy'])
+cv_acc_df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of cv accuracy by C")
 plt.show()
 
-delta_list = []
-for key in test_acc_dict.keys():
-    delta_list.append(np.mean(test_acc_dict[key]))
-keys = test_acc_dict.keys()
-df = pd.DataFrame(list(zip(keys, delta_list)), columns =['C', 'Accuracy'])
-
-# Create the plot
-df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of test accuracy by C")
+# Create the test accuracy plot
+test_acc_df = pd.DataFrame(list(zip(c_vals, test_acc_lst)), columns=['C', 'Accuracy'])
+test_acc_df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of test accuracy by C")
 plt.show()
