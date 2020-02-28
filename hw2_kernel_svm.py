@@ -120,7 +120,7 @@ def rbf_svm_train(X, y, c, sig):
     X = np.array(X)
     y = np.array(y)
     m = X.shape[0]
-    X = np.append(X, np.ones((m, 1)), 1)
+    # X = np.append(X, np.ones((m, 1)), 1)
     y = y.reshape(-1, 1)
     K = np.zeros((m, m))
     for i in range(m):
@@ -158,24 +158,22 @@ def predict(test_X, train_X, train_y, alpha, sig):
     :return: A numpy array of y classification predictions.
     """
     X = np.array(train_X)
-    m = X.shape[0]
-    X = np.append(X, np.ones((m, 1)))
-    X = X.reshape((m, 3))
+    # m = X.shape[0]
+    # X = np.append(X, np.ones((m, 1)))
+    # X = X.reshape((m, 3))
 
     X_new = np.array(test_X)
-    m_new = X_new.shape[0]
-    X_new = np.append(X_new, np.ones((m_new, 1)))
-    X_new = X_new.reshape((m_new, 3))
+    # m_new = X_new.shape[0]
+    # X_new = np.append(X_new, np.ones((m_new, 1)))
+    # X_new = X_new.reshape((m_new, 3))
 
     y = np.array(train_y)
     y = y.reshape(-1, 1)
 
-    preds = []
-    for i in range(m_new):
-        sum = 0
-        for j in range(m):
-            sum += (y[j] * alpha[j] * rbf_kernel(X_new[i], X[j], sig))
-        preds.append(sum)
+    X_new_norm = np.sum(X_new ** 2, axis=-1)
+    X_norm = np.sum(X ** 2, axis=-1)
+    preds = np.matmul((alpha * (np.exp(-(X_new_norm[:,None] //
+                                         + X_norm[None,:] - 2 * np.dot(X_new, X.T)) / (2.0 * sig**2))).T).T, y)
     preds = np.sign(preds)
     return preds
 
@@ -219,6 +217,42 @@ def k_fold_cv(train, test, k, c, sig):
     return np.mean(train_acc_lst), np.mean(cv_acc_lst), test_acc
 
 
+def plot_heat_map(dict, title, type = 'accuracy'):
+    """
+    Create a heat map plot from a dictionary
+    :param dict: A python dictionary with same values as keys
+    :param title: The title to use for the plot
+    :param type: Default will plot accuracy.  Use error_rate
+    to plot the error rate
+    :return: None
+    """
+    c_vals = dict.keys()
+    sig_vals = c_vals
+    heat_array = []
+    for key in dict.keys():
+        heat_array.append(dict[key])
+    heat_array = np.round(np.array(heat_array), 3)
+    if type == 'error_rate':
+        heat_array = 1 - heat_array
+        heat_array = np.round(np.array(heat_array), 3)
+    fig, ax = plt.subplots()
+    im = ax.imshow(heat_array)
+    ax.set_xticks(np.arange(len(c_vals)))
+    ax.set_yticks(np.arange(len(sig_vals)))
+    ax.set_xticklabels(c_vals)
+    ax.set_yticklabels(sig_vals)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    for i in range(len(sig_vals)):
+        for j in range(len(c_vals)):
+            text = ax.text(j, i, heat_array[i, j], ha="center", va="center", color="w")
+    ax.set_title(title)
+    plt.xlabel("C Values")
+    plt.ylabel("Sigma Values")
+    fig.tight_layout()
+    plt.show()
+    return None
+
+
 # Define the number of folds to use
 k = 10
 # Read dataset
@@ -235,6 +269,7 @@ train_acc_dict = {}
 cv_acc_dict = {}
 test_acc_dict = {}
 c_vals = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000]
+# c_vals = [0.01, 0.1, 1, 10]
 sig_vals = c_vals
 for c in c_vals:
     print("C value: " + str(c))
@@ -251,32 +286,10 @@ for c in c_vals:
     cv_acc_dict[c] = cv_acc_lst
     test_acc_dict[c] = test_acc_lst
 
-delta_list = []
-for key in train_acc_dict.keys():
-    delta_list.append(np.mean(train_acc_dict[key]))
-keys = train_acc_dict.keys()
-df = pd.DataFrame(list(zip(keys, delta_list)), columns =['C', 'Accuracy'])
+plot_heat_map(train_acc_dict, 'Average Training Error Rate', 'error_rate')
+plot_heat_map(cv_acc_dict, 'Average Cross Validation Error Rate', 'error_rate')
+plot_heat_map(test_acc_dict, 'Test Error Rate Using Best Models From 10-fold CV', 'error_rate')
 
-# Create the plot
-df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of training accuracy by C")
-plt.show()
-
-delta_list = []
-for key in cv_acc_dict.keys():
-    delta_list.append(np.mean(cv_acc_dict[key]))
-keys = cv_acc_dict.keys()
-df = pd.DataFrame(list(zip(keys, delta_list)), columns =['C', 'Accuracy'])
-
-# Create the plot
-df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of cv accuracy by C")
-plt.show()
-
-delta_list = []
-for key in test_acc_dict.keys():
-    delta_list.append(np.mean(test_acc_dict[key]))
-keys = test_acc_dict.keys()
-df = pd.DataFrame(list(zip(keys, delta_list)), columns =['C', 'Accuracy'])
-
-# Create the plot
-df.plot(x='C', y='Accuracy', logx=True, ylim=(0, 1), title="Plot of test accuracy by C")
-plt.show()
+plot_heat_map(train_acc_dict, 'Average Training Accuracy')
+plot_heat_map(cv_acc_dict, 'Average Cross Validation Accuracy')
+plot_heat_map(test_acc_dict, 'Test Accuracy Using Best Models From 10-fold CV')
