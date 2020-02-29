@@ -106,7 +106,6 @@ def svmfit(X, y, c):
     X = np.array(X)
     y = np.array(y)
     m = X.shape[0]
-    X = np.append(X, np.ones((m, 1)), 1)
     y = y.reshape(-1, 1)
     X_new = y * X
     H = np.dot(X_new, X_new.transpose())
@@ -140,8 +139,7 @@ def predict(X, weight):
     """
     X = np.array(X)
     m = X.shape[0]
-    X = np.append(X, np.ones(m))
-    X = X.reshape((3, m))
+    X = X.reshape((2, m))
     weight = weight.reshape(-1, 1)
     y_pred = np.sign(np.matmul(weight.transpose(), X))
     return y_pred.transpose()
