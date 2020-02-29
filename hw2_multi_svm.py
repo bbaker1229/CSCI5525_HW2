@@ -155,12 +155,12 @@ def mnist_svm_train(X, y, c, sig):
 
         # cvxopt format
         cvxopt_solvers.options['show_progress'] = False
-        P = cvxopt_matrix(H)
-        q = cvxopt_matrix(-np.ones((m, 1)))
-        G = cvxopt_matrix(np.vstack((np.eye(m) * -1, np.eye(m))))
-        h = cvxopt_matrix(np.hstack((np.zeros(m), np.ones(m) * c)))
+        P = cvxopt_matrix(H * 1.)
+        q = cvxopt_matrix(-np.ones((m, 1)) * 1.)
+        G = cvxopt_matrix(np.vstack((np.eye(m) * -1, np.eye(m))) * 1.)
+        h = cvxopt_matrix(np.hstack((np.zeros(m), np.ones(m) * c)) * 1.)
         A = cvxopt_matrix(y_k.reshape(1, -1) * 1.)
-        b = cvxopt_matrix(np.zeros(1))
+        b = cvxopt_matrix(np.zeros(1) * 1.)
 
         # Solve
         sol = cvxopt_solvers.qp(P, q, G, h, A, b)
@@ -184,23 +184,32 @@ def mnist_svm_predict(test_X, train_X, train_y, alpha, sig):
     :return: A numpy array of y classification predictions.
     """
     X = np.array(train_X)
+    m = X.shape[0]
     X_new = np.array(test_X)
+    m_new = X_new.shape[0]
     X_new_norm = np.sum(X_new ** 2, axis=-1)
     X_norm = np.sum(X ** 2, axis=-1)
     for z in range(train_y.shape[1]):
         y_k = train_y[str(z+1)]
         y_k = np.array(y_k)
         y_k = y_k.reshape(-1, 1)
+        alp = alpha[z]
+        # preds_k = []
+        # for i in range(m_new):
+        #     sum = 0
+        #     for j in range(m):
+        #         sum += (y_k[j] * alp[j] * rbf_kernel(X_new[i], X[j], sig))
+        #     preds_k.append(sum)
 
         preds_k = np.matmul((alpha[z] * (np.exp(-(X_new_norm[:,None] + X_norm[None,:] - 2 * np.dot(X_new, X.T)) / (2.0 * sig**2))).T).T, y_k)
-        preds_k = pd.DataFrame(np.sign(preds_k))
+        preds_k = pd.DataFrame(preds_k)
         if z == 0:
             preds = preds_k
         else:
             preds[z] = preds_k
     preds.columns = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
-    preds = preds.astype(int)
-    preds = np.abs(preds)
+    # preds = preds.astype(int)
+    # preds = np.abs(preds)
     return preds.idxmax(axis=1)
 
 
@@ -362,15 +371,17 @@ encoded_test_y = encode_y(test_y)
 # Multi class SVM
 # Define the number of folds to use
 k = 10
+
 # Perform k fold cross validation on a list of C parameters
 # Collect the average training and cv accuracies and the test
 # accuracy using the best parameters
 train_acc_dict = {}
 cv_acc_dict = {}
 test_acc_dict = {}
+
 c_vals = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000]
-# c_vals = [0.01, 0.1, 1, 10]
 sig_vals = c_vals
+
 for c in c_vals:
     print("C value: " + str(c))
     train_acc_lst = []
@@ -390,19 +401,25 @@ for c in c_vals:
 # Train a multi class logistic model using a mini batch process
 learning_rate = 1.0 / train_x.shape[0]
 weight = mnist_train(train_x, encoded_train_y, learning_rate)
+
 # Predict labels on the training data
 y_pred = mnist_predict(weight, train_x)
+
 # Plot the confusion matrix for the training data
 print("Training Data Confusion Matrix")
 print(con_mat(train_y, y_pred))
 cvm = con_mat(train_y, y_pred)
+
 # Print the training accuracy
 print("Training Accuracy: " + str(calculate_accuracy(cvm)))
+
 # Predict the y labels for the test data set
 y_pred = mnist_predict(weight, test_x)
+
 # Plot the confusion matrix for the test data
 print("\nTest Data Confusion Matrix")
 print(con_mat(test_y, y_pred))
 cvm = con_mat(test_y, y_pred)
+
 # Print the test accuracy
 print("Test Accuracy: " + str(calculate_accuracy(cvm)))

@@ -130,12 +130,12 @@ def rbf_svm_train(X, y, c, sig):
 
     # cvxopt format
     cvxopt_solvers.options['show_progress'] = False
-    P = cvxopt_matrix(H)
-    q = cvxopt_matrix(-np.ones((m, 1)))
-    G = cvxopt_matrix(np.vstack((np.eye(m) * -1, np.eye(m))))
-    h = cvxopt_matrix(np.hstack((np.zeros(m), np.ones(m) * c)))
-    A = cvxopt_matrix(y.reshape(1, -1))
-    b = cvxopt_matrix(np.zeros(1))
+    P = cvxopt_matrix(H * 1.)
+    q = cvxopt_matrix(-np.ones((m, 1)) * 1.)
+    G = cvxopt_matrix(np.vstack((np.eye(m) * -1, np.eye(m))) * 1.)
+    h = cvxopt_matrix(np.hstack((np.zeros(m), np.ones(m) * c)) * 1.)
+    A = cvxopt_matrix(y.reshape(1, -1) * 1.)
+    b = cvxopt_matrix(np.zeros(1) * 1.)
 
     # Solve
     sol = cvxopt_solvers.qp(P, q, G, h, A, b)
@@ -158,14 +158,8 @@ def predict(test_X, train_X, train_y, alpha, sig):
     :return: A numpy array of y classification predictions.
     """
     X = np.array(train_X)
-    # m = X.shape[0]
-    # X = np.append(X, np.ones((m, 1)))
-    # X = X.reshape((m, 3))
 
     X_new = np.array(test_X)
-    # m_new = X_new.shape[0]
-    # X_new = np.append(X_new, np.ones((m_new, 1)))
-    # X_new = X_new.reshape((m_new, 3))
 
     y = np.array(train_y)
     y = y.reshape(-1, 1)
@@ -269,7 +263,6 @@ train_acc_dict = {}
 cv_acc_dict = {}
 test_acc_dict = {}
 c_vals = [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000]
-# c_vals = [0.01, 0.1, 1, 10]
 sig_vals = c_vals
 for c in c_vals:
     print("C value: " + str(c))
