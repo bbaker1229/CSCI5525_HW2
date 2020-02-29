@@ -45,7 +45,7 @@ def mnist_train(X, y, learning_rate):
     :param learning_rate: The learning rate to use for batch processing.
     :return: The trained weights for the logistic model.
     """
-    batch_size = 1000
+    batch_size = 100
     original_X = X.copy()
     original_y = y.copy()
     d = original_X.shape[1] + 1
@@ -86,7 +86,7 @@ def con_mat(actual, predicted):
     """
     df = actual.copy()
     df_temp = pd.DataFrame(predicted.transpose())
-    df['predicted'] = df_temp.iloc[:,0].values
+    df['predicted'] = df_temp.iloc[:, 0].values
     df.columns = ['actual', 'predicted']
     cm = pd.crosstab(df['predicted']
                                    , df['actual']
@@ -104,7 +104,7 @@ def calculate_accuracy(confusion_matrix):
     total = 0
     for i in range(confusion_matrix.shape[0]):
         total += confusion_matrix[i][i]
-    total = (total * 1.) / (np.sum(np.sum(cvm)) * 1.)
+    total = (total * 1.) / (np.sum(np.sum(confusion_matrix)) * 1.)
     return total
 
 
