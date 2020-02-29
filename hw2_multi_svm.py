@@ -8,6 +8,8 @@
 # Import packages
 import numpy as np
 import pandas as pd
+from cvxopt import matrix as cvxopt_matrix
+from cvxopt import solvers as cvxopt_solvers
 
 
 def shuffle_data(df):
