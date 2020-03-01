@@ -266,6 +266,96 @@ def k_fold_cv(train, test, k, c, sig):
     return np.mean(train_acc_lst), np.mean(cv_acc_lst), test_acc
 
 
+def k_fold_cv_to_save(train, test, k, c, sig):
+    """
+    This is the same function as above, but it saves the best alpha to a file
+    and returns the test predictions.
+    :param train: A pandas data frame to be used as the training
+    dataset.
+    :param test: A pandas data frame to be used as the test dataset.
+    :param k: The number of folds to use.
+    :param c: The modeling parameter to use for SVM.
+    :param sig: The rbf hyperparameter
+    :return: The average training accuracy and the validation
+    accuracies.  Also the test accuracy
+    using these best weights. Along with the test predictions.
+    """
+    train_folds = create_k_train_sets(train, k)
+    alpha_lst = []
+    train_acc_lst = []
+    cv_acc_lst = []
+    print("Fold #:")
+    for i in range(k):
+        print(i, end=" ")
+        train_x, train_y, valid_x, valid_y = get_next_train_valid(train_folds, i)
+        alpha = mnist_svm_train(train_x, train_y, c, sig)
+        alpha_lst.append(alpha)
+        y_pred = mnist_svm_predict(train_x, train_x, train_y, alpha, sig)
+        train_y_values = train_y.idxmax(axis=1).astype(int)
+        train_y_values = train_y_values.reset_index()
+        train_y_values = train_y_values.drop('index', axis=1)
+        y_pred = y_pred.astype(int)
+        y_pred = pd.DataFrame(y_pred)
+        train_acc = (train_y.shape[0] - np.count_nonzero(train_y_values - y_pred)) / train_y.shape[0]
+        train_acc_lst.append(train_acc)
+        y_pred = mnist_svm_predict(valid_x, train_x, train_y, alpha, sig)
+        valid_y_values = valid_y.idxmax(axis=1).astype(int)
+        valid_y_values = valid_y_values.reset_index()
+        valid_y_values = valid_y_values.drop('index', axis=1)
+        y_pred = y_pred.astype(int)
+        y_pred = pd.DataFrame(y_pred)
+        valid_acc = (valid_y.shape[0] - np.count_nonzero(valid_y_values - y_pred)) / valid_y.shape[0]
+        cv_acc_lst.append(valid_acc)
+    best = cv_acc_lst.index(max(cv_acc_lst))
+    np.savetxt("hw2_p7_alpha.csv", alpha_lst[best], delimiter=",")
+    test_x = test.drop('Unnamed: 0', axis=1)
+    test_x = test_x.drop('y', axis=1)
+    test_y = test['y']
+    test_y = pd.DataFrame(np.array(test_y))
+    y_pred = mnist_svm_predict(test_x, train_x, train_y, alpha_lst[best], sig)
+    y_pred = y_pred.astype(int)
+    y_pred = pd.DataFrame(y_pred)
+    test_acc = (test_y.shape[0] - np.count_nonzero(test_y - y_pred)) / test_y.shape[0]
+    print("\n")
+    return np.mean(train_acc_lst), np.mean(cv_acc_lst), test_acc, y_pred
+
+
+def plot_heat_map(dict, title, type = 'accuracy'):
+    """
+    Create a heat map plot from a dictionary
+    :param dict: A python dictionary with same values as keys
+    :param title: The title to use for the plot
+    :param type: Default will plot accuracy.  Use error_rate
+    to plot the error rate
+    :return: None
+    """
+    c_vals = dict.keys()
+    sig_vals = c_vals
+    heat_array = []
+    for key in dict.keys():
+        heat_array.append(dict[key])
+    heat_array = np.round(np.array(heat_array), 3)
+    if type == 'error_rate':
+        heat_array = 1 - heat_array
+        heat_array = np.round(np.array(heat_array), 3)
+    fig, ax = plt.subplots()
+    im = ax.imshow(heat_array)
+    ax.set_xticks(np.arange(len(c_vals)))
+    ax.set_yticks(np.arange(len(sig_vals)))
+    ax.set_xticklabels(c_vals)
+    ax.set_yticklabels(sig_vals)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    for i in range(len(sig_vals)):
+        for j in range(len(c_vals)):
+            text = ax.text(j, i, heat_array[i, j], ha="center", va="center", color="w")
+    ax.set_title(title)
+    plt.ylabel("C Values")
+    plt.xlabel("Sigma Values")
+    fig.tight_layout()
+    plt.show()
+    return None
+
+
 def con_mat(actual, predicted):
     """
     Create a confusion matrix from the predicted and actual values.
@@ -357,12 +447,16 @@ test = pd.read_csv('mfeat_test.csv')
 
 # Prepare X and y training data sets
 train = shuffle_data(train)
+train = train.reset_index()
+train = train.drop('index', axis=1)
 train_x = train.drop('Unnamed: 0', axis=1)
 train_x = train_x.drop('y', axis=1)
 train_y = train['y']
 encoded_train_y = encode_y(train_y)
 
 # Prepare X and y test data sets
+test = test.reset_index()
+test = test.drop('index', axis=1)
 test_x = test.drop('Unnamed: 0', axis=1)
 test_x = test_x.drop('y', axis=1)
 test_y = test['y']
@@ -396,6 +490,28 @@ for c in c_vals:
     train_acc_dict[c] = train_acc_lst
     cv_acc_dict[c] = cv_acc_lst
     test_acc_dict[c] = test_acc_lst
+
+# Plot Error Rate
+plot_heat_map(train_acc_dict, 'Average Training Error Rate', 'error_rate')
+plot_heat_map(cv_acc_dict, 'Average Cross Validation Error Rate', 'error_rate')
+plot_heat_map(test_acc_dict, 'Test Error Rate Using Best Models From 10-fold CV', 'error_rate')
+
+# Plot Accuracy
+plot_heat_map(train_acc_dict, 'Average Training Accuracy')
+plot_heat_map(cv_acc_dict, 'Average Cross Validation Accuracy')
+plot_heat_map(test_acc_dict, 'Test Accuracy Using Best Models From 10-fold CV')
+
+# Use the C and sigma values that gave the highest accuracy for the final model.
+c = 1000
+sig = 1
+train_accuracy, cv_accuracy, test_accuracy, test_pred = k_fold_cv_to_save(train, test, k, c, sig)
+
+# Plot the confusion matrix for the test data
+print("\nTest Data Confusion Matrix")
+print(con_mat(test_y, test_pred))
+cvm = con_mat(test_y, test_pred)
+# Print the test accuracy
+print("Test Accuracy: " + str(calculate_accuracy(cvm)))
 
 # Multi class logistic
 # Train a multi class logistic model using a mini batch process

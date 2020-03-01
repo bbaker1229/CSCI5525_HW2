@@ -240,8 +240,8 @@ def plot_heat_map(dict, title, type = 'accuracy'):
         for j in range(len(c_vals)):
             text = ax.text(j, i, heat_array[i, j], ha="center", va="center", color="w")
     ax.set_title(title)
-    plt.xlabel("C Values")
-    plt.ylabel("Sigma Values")
+    plt.ylabel("C Values")
+    plt.xlabel("Sigma Values")
     fig.tight_layout()
     plt.show()
     return None
