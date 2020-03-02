@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from cvxopt import matrix as cvxopt_matrix
 from cvxopt import solvers as cvxopt_solvers
+import matplotlib.pyplot as plt
 
 
 def shuffle_data(df):
